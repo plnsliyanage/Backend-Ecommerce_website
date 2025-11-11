@@ -57,11 +57,20 @@ export function loginUser(req, res) {
                         isEmailVerified: user.isEmailVerified
                     },
                     //encrypted key
-                    "jwt-secret"
+                    process.env.JWT_SECRET
                 )
                 res.json({
+                    // log successfully and get token roll and other details 
                     message: "Login successfull",
-                    token: token
+                    token: token,
+                    user: {
+                        email: user.email,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        role: user.role,
+                        isEmailVerified: user.isEmailVerified,
+                    }
+
                 })
 
             } else {

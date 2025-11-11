@@ -20,13 +20,14 @@ app.use(express.json())
 //middleware to check token
 app.use(
 
-    (res, req, next) => {
-        const token = req.header("Authorization")
+    (req, res, next) => {
+        let token = req.header("Authorization")
         if (token != null) {
             token = token.replace("Bearer ", "")
             console.log(token)
             //decrypt the token 
-            jwt.verify(token, "jwt-secret",
+
+            jwt.verify(token, process.env.JWT_SECRET,
                 (err, decoded) => {
                     if (decoded == null) {
                         res.json({
@@ -52,7 +53,7 @@ app.use(
 
 
 //databse connected
-const connectionString = "mongodb+srv://admin:123@cluster0.skre8hh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const connectionString = process.env.MONGO_URI;
 
 mongoose.connect(connectionString).then(
     () => {
@@ -65,8 +66,8 @@ mongoose.connect(connectionString).then(
 )
 
 
-app.use("/users", userRouter)
-app.use("/products", productRouter)
+app.use("/api/users", userRouter)
+app.use("/api/products", productRouter)
 
 // run backend
 app.listen(5000, () => {
