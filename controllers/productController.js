@@ -2,17 +2,7 @@ import Product from "../models/product.js";
 import { isAdmin } from "./userController.js";
 
 export async function createProduct(req, res) {
-    if (req.user == null) {
-        res.status(401).json({
-            message: "Please login and try again"
-        });
-        return;
-    }
-    if (req.user.role != "admin") {
-        res.status(403).json({
-            message: "you are not authorized to create a product"
-        });
-    }
+
 
     if (!isAdmin(req)) {
         res.status(403).json({
@@ -52,18 +42,21 @@ export async function getProducts(req, res) {
 
 export async function deleteProduct(req, res) {
     if (!isAdmin(req)) {
-        res.Status(401).json({
+        res.status(401).json({
             message: "You are not authorized to delete products"
         });
         return;
     }
+
     try {
-        const productID = req.params.productID
+        const productID = req.params.productID;
 
-        await productID.deleteOne({
-            productID: productID
+        const result = await Product.deleteOne({ productID: productID });
 
-        })
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ message: "Product not found" });
+        }
+
         res.json({
             message: "Product deleted successfully"
         });
@@ -72,19 +65,18 @@ export async function deleteProduct(req, res) {
         console.error(err);
         res.status(500).json({
             message: "Failed to delete Products"
-        })
+        });
     }
 }
-
 export async function updateProduct(req, res) {
     if (!isAdmin(req)) {
-        res.Status(401).json({
+        res.status(401).json({
             message: "You are not authorized to update a products"
         });
         return;
     }
     try {
-        const productId = req.params.productID;
+        const productID = req.params.productID;
         const updateData = req.body;
         await Product.updateOne(
             { productID: productID },
