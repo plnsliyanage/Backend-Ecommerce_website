@@ -24,7 +24,7 @@ app.use(
         let token = req.header("Authorization")
         if (token != null) {
             token = token.replace("Bearer ", "")
-            console.log(token)
+
             //decrypt the token 
 
             jwt.verify(token, process.env.JWT_SECRET,
