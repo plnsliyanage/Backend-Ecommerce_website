@@ -1,10 +1,11 @@
 import mongoose from "mongoose";
+
 const productSchema = new mongoose.Schema(
     {
         productID: {
             type: String,
             required: true,
-            Unique: true
+            unique: true // Fixed casing from 'Unique' to 'unique'
         },
         name: {
             type: String,
@@ -14,7 +15,6 @@ const productSchema = new mongoose.Schema(
             type: [String],
             default: [],
             required: true
-
         },
         description: {
             type: String,
@@ -22,6 +22,11 @@ const productSchema = new mongoose.Schema(
         },
         images: {
             type: [String],
+            default: [],
+            required: true
+        },
+        colors: {
+            type: [String], // e.g., ["#FFC0CB", "Sage Green", "Lavender"]
             default: [],
             required: true
         },
@@ -43,6 +48,7 @@ const productSchema = new mongoose.Schema(
             default: 0
         }
     }
-)
-const Product = mongoose.model("Product", productSchema)
-export default Product
+);
+
+const Product = mongoose.model("Product", productSchema);
+export default Product;
