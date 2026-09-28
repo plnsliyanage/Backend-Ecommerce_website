@@ -1,68 +1,67 @@
 import express from "express";
 import mongoose from "mongoose";
-
 import userRouter from "./routes/userRouter.js";
 import jwt from "jsonwebtoken";
+import productRouter from "./routes/productRouter.js";
 import cors from "cors";
 import dotenv from "dotenv";
-import productRouter from "./routes/productRouter.js";
+import orderRouter from "./routes/orderRouter.js";
 
 dotenv.config();
 
-// fully furnished backend software is assigned to variable called app
-const app = express();
+const app = express()
+app.use(cors())
 
-app.use(cors());
+app.use(express.json())
 
-// middleware
-app.use(express.json());
-
-// middleware to check token
 app.use(
-    (req, res, next) => {
-        let token = req.header("Authorization");
+    (req,res,next)=>{
 
-        if (token != null) {
-            token = token.replace("Bearer ", "");
+        let token = req.header("Authorization")
 
-            // decrypt the token
-            jwt.verify(
-                token,
-                process.env.JWT_SECRET,
-                (err, decoded) => {
-                    if (decoded == null) {
+        if(token != null){
+            token = token.replace("Bearer ","")
+            jwt.verify(token, process.env.JWT_SECRET,
+                (err, decoded)=>{
+                    if(decoded == null){
                         res.json({
                             message: "Invalid token please login again"
-                        });
-                        return;
-                    } else {
-                        req.user = decoded;
+                        })
+                        return
+                    }else{
+                        req.user = decoded
                     }
                 }
-            );
+            )
+
         }
-
-        next();
+        next()
     }
-);
+)
 
-// Database connection
-const connectionString = process.env.MONGO_URI;
+const connectionString = process.env.MONGO_URI
 
-mongoose.connect(connectionString)
-    .then(() => {
-        console.log("Database Connected");
-    })
-    .catch((error) => {
-        console.log("Database connection failed:");
-        console.log(error.message);
-    });
 
-// Routes
-app.use("/api/users", userRouter);
-app.use("/api/products", productRouter);
+mongoose.connect(connectionString).then(
+    ()=>{
+        console.log("Database connected Successfully")
+    }
+).catch(
+    ()=>{
+        console.log("Database connection failed")
+    }
+)
 
-// Run backend
-app.listen(5000, () => {
-    console.log("server is running on port 5000");
-});
+
+
+
+app.use("/api/users",userRouter)
+app.use("/api/products", productRouter)
+app.use("/api/orders", orderRouter)
+
+
+app.listen(5000, 
+    ()=>{
+        console.log("Server is running on port 5000")
+    }
+)
