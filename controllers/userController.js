@@ -20,46 +20,31 @@ const transporter = nodemailer.createTransport({
 	},
 });
 
-
-
-// Function to create a new user
 export function createUser(req, res) {
-    // Hash the password before saving it
-    const hashedPassword = bcrypt.hashSync(req.body.password, 10);
+	const hashedPassword = bcrypt.hashSync(req.body.password, 10);
 
-    // Create a new user
-    const user = new User({
-        email: req.body.email,
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        password: hashedPassword,
-    });
+	const user = new User({
+		email: req.body.email,
+		firstName: req.body.firstName,
+		lastName: req.body.lastName,
+		password: hashedPassword,
+	});
 
-    // Save user to database
-    user
-        .save()
-        .then(() => {
-            // Send success response to frontend
-            res.status(201).json({
-                message: "User created successfully",
-            });
-        })
-        .catch((err) => {
-            console.error("Failed to create user:", err);
-
-            // Send error status to frontend
-            res.status(500).json({
-                message: "Failed to create user",
-            });
-        });
+	user
+		.save()
+		.then(() => {
+			res.json({
+				message: "User created successfully",
+			});
+		})
+		.catch(() => {
+			res.json({
+				message: "Failed to create user",
+			});
+		});
 }
 
-
 export function loginUser(req, res) {
-
-    //Find user whose email matches the email sent from frontend.
-    //Found user data is stored in user.
-
 	User.findOne({
 		email: req.body.email,
 	}).then((user) => {
@@ -67,11 +52,7 @@ export function loginUser(req, res) {
 			res.status(404).json({
 				message: "User not found",
 			});
-
-            //If user exists, continue login process.
 		} else {
-
-            //Check whether user account is blocked.Stop the function immediately.
 			if (user.isBlock) {
 				res.status(403).json({
 					message: "Your account has been blocked. Please contact admin.",
@@ -79,16 +60,11 @@ export function loginUser(req, res) {
 				return;
 			}
 			const isPasswordMatching = bcrypt.compareSync(
-                //Password entered from frontend.
 				req.body.password,
-                //Encrypted password stored in database.
 				user.password
 			);
 			if (isPasswordMatching) {
-
-                //Create JWT authentication token.
 				const token = jwt.sign(
-                    
 					{
 						email: user.email,
 						firstName: user.firstName,
@@ -97,12 +73,9 @@ export function loginUser(req, res) {
 						isEmailVerified: user.isEmailVerified,
 						image: user.image,
 					},
-                    //Secret key used to generate secure token.
 					process.env.JWT_SECRET
 				);
-            
 
-                // if password match send msg ,token and user data to frontend
 				res.json({
 					message: "Login successful",
 					token: token,
