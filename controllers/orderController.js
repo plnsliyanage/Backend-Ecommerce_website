@@ -3,186 +3,254 @@ import Product from "../models/product.js";
 import { isAdmin, isCustomer } from "./userController.js";
 
 export async function createOrder(req, res) {
-	//CBC0000001
+    try {
+        // Get logged-in user from authentication middleware
+        const user = req.user;
 
-	// if(req.user == null){
-	//     res.status(401).json(
-	//         {
-	//             message: "Unauthorized user"
-	//         }
-	//     )
-	//     return
-	// }
+        // Check whether user is logged in
+        if (user == null) {
+            res.status(401).json({
+                message: "Unauthorized user"
+            });
+            return;
+        }
 
-	try {
-		const user = req.user;
-		if (user == null) {
-			res.status(401).json({
-				message: "Unauthorized user",
-			});
-			return;
-		}
+        // Get the latest order
+        const orderList = await Order.find()
+            .sort({ date: -1 })
+            .limit(1);
 
-		const orderList = await Order.find().sort({ date: -1 }).limit(1);
+        // Default first order ID
+        let newOrderID = "CBC0000001";
 
-		let newOrderID = "CBC0000001";
+        // Generate next order ID
+        if (orderList.length != 0) {
+            const lastOrderIDInString = orderList[0].orderID;
 
-		if (orderList.length != 0) {
-			let lastOrderIDInString = orderList[0].orderID; //"CBC0000123"
-			let lastOrderNumberInString = lastOrderIDInString.replace("CBC", ""); //"0000123"
-			let lastOrderNumber = parseInt(lastOrderNumberInString); //123
-			let newOrderNumber = lastOrderNumber + 1; //124
-			//padStart
-			let newOrderNumberInString = newOrderNumber.toString().padStart(7, "0"); //"0000124"
+            // Remove CBC
+            const lastOrderNumberInString =
+                lastOrderIDInString.replace("CBC", "");
 
-			newOrderID = "CBC" + newOrderNumberInString; //"CBC0000124"
-		}
+            // Convert number string to number
+            const lastOrderNumber =
+                parseInt(lastOrderNumberInString);
 
-		let customerName = req.body.customerName;
-		if (customerName == null) {
-			customerName = user.firstName + " " + user.lastName;
-		}
+            // Increase order number
+            const newOrderNumber =
+                lastOrderNumber + 1;
 
-		let phone = req.body.phone;
-		if (phone == null) {
-			phone = "Not provided";
-		}
+            // Add leading zeros
+            const newOrderNumberInString =
+                newOrderNumber.toString().padStart(7, "0");
 
-		const itemsInRequest = req.body.items;
+            // Create new order ID
+            newOrderID = "CBC" + newOrderNumberInString;
+        }
 
-		if (itemsInRequest == null) {
-			res.status(400).json({
-				message: "Items are required to place an order",
-			});
-			return;
-		}
+        // Get customer name
+        let customerName = req.body.customerName;
 
-		if (!Array.isArray(itemsInRequest)) {
-			res.status(400).json({
-				message: "Items should be an array",
-			});
-			return;
-		}
+        // If customer did not enter a name,
+        // use the logged-in user's name
+        if (customerName == null || customerName == "") {
+            customerName =
+                user.firstName + " " + user.lastName;
+        }
 
-		const itemsToBeAdded = [];
-		let total = 0;
+        // Get phone number
+        let phone = req.body.phone;
 
-		for (let i = 0; i < itemsInRequest.length; i++) {
-			const item = itemsInRequest[i];
+        // Use default value if phone is not provided
+        if (phone == null) {
+            phone = "Not provided";
+        }
 
-			const product = await Product.findOne({ productID: item.productID });
+        // Get items sent from frontend
+        const itemsInRequest = req.body.items;
 
-			if (product == null) {
-				res.status(400).json({
-					code: "not-found",
-					message: `Product with ID ${item.productID} not found`,
-					productID: item.productID,
-				});
-				return;
-			}
+        // Check whether items exist
+        if (itemsInRequest == null) {
+            res.status(400).json({
+                message: "Items are required to place an order"
+            });
+            return;
+        }
 
-			if (product.stock < item.quantity) {
-				res.status(400).json({
-					code: "stock",
-					message: `Insufficient stock for product with ID ${item.productID}`,
-					productID: item.productID,
-					availableStock: product.stock,
-				});
-				return;
-			}
+        // Items must be an array
+        if (!Array.isArray(itemsInRequest)) {
+            res.status(400).json({
+                message: "Items should be an array"
+            });
+            return;
+        }
 
-			itemsToBeAdded.push({
-				productID: product.productID,
-				quantity: item.quantity,
-				name: product.name,
-				price: product.price,
-				image: product.images[0],
-			});
+        // Array for storing final order items
+        const itemsToBeAdded = [];
 
-			total += product.price * item.quantity;
-		}
+        // Order total
+        let total = 0;
 
-		const newOrder = new Order({
-			orderID: newOrderID,
-			items: itemsToBeAdded,
-			customerName: customerName,
-			email: user.email,
-			phone: phone,
-			address: req.body.address,
-			total: total,
-		});
+        // Process every item
+        for (let i = 0; i < itemsInRequest.length; i++) {
+            const item = itemsInRequest[i];
 
-		const savedOrder = await newOrder.save();
+            // Check whether colour was provided
+            if (item.colour == null || item.colour == "") {
+                res.status(400).json({
+                    code: "colour-required",
+                    message:
+                        `Colour is required for product ${item.productID}`,
+                    productID: item.productID
+                });
+                return;
+            }
 
-		// for(let i=0; i<itemsToBeAdded.length; i++){
-		//     const item = itemsToBeAdded[i]
+            // Find product using product ID
+            const product = await Product.findOne({
+                productID: item.productID
+            });
 
-		//     await Product.updateOne(
-		//         {productID: item.productID},
-		//         {$inc : {stock : -item.quantity}}
-		//     )
-		// }
+            // Check product exists
+            if (product == null) {
+                res.status(400).json({
+                    code: "not-found",
+                    message:
+                        `Product with ID ${item.productID} not found`,
+                    productID: item.productID
+                });
+                return;
+            }
 
-		// for(let i=0; i<itemsToBeAdded.length; i++){
-		//     const item = itemsToBeAdded[i]
+            // Check stock
+            if (product.stock < item.quantity) {
+                res.status(400).json({
+                    code: "stock",
+                    message:
+                        `Insufficient stock for product with ID ${item.productID}`,
+                    productID: item.productID,
+                    availableStock: product.stock
+                });
+                return;
+            }
 
-		//     const product = await Product.findOne({productID:  item.productID})
+            // Add product to order
+            itemsToBeAdded.push({
+                productID: product.productID,
+                quantity: item.quantity,
 
-		//     const newQty = product.stock - item.quantity
+                // Save selected colour
+                colour: item.colour,
 
-		//     await Product.updateOne(
-		//         {productID: item.productID},
-		//         {stock : newQty}
-		//     )
-		// }
+                name: product.name,
+                price: product.price,
+                image: product.images[0]
+            });
 
-		res.status(201).json({
-			message: "Order created successfully",
-			order: savedOrder,
-		});
-	} catch (err) {
-		console.log(err);
-		res.status(500).json({
-			message: "Internal server error",
-		});
-	}
+            // Calculate total
+            total += product.price * item.quantity;
+        }
+
+        // Create new order
+        const newOrder = new Order({
+            orderID: newOrderID,
+            items: itemsToBeAdded,
+            customerName: customerName,
+            email: user.email,
+            phone: phone,
+            address: req.body.address,
+            total: total
+        });
+
+        // Save order to MongoDB
+        const savedOrder = await newOrder.save();
+
+        // Send success response
+        res.status(201).json({
+            message: "Order created successfully",
+            order: savedOrder
+        });
+
+    } catch (err) {
+        console.log(err);
+
+        res.status(500).json({
+            message: "Internal server error"
+        });
+    }
 }
 
+
+// Get orders
 export async function getOrders(req, res) {
-	if (isAdmin(req)) {
-		const orders = await Order.find().sort({ date: -1 });
-		res.json(orders);
-	} else if (isCustomer(req)) {
-		const user = req.user;
-		const orders = await Order.find({ email: user.email }).sort({ date: -1 });
-		res.json(orders);
-	} else {
-		res.status(403).json({
-			message: "You are not authorized to view orders",
-		});
-	}
+
+    // Admin can see all orders
+    if (isAdmin(req)) {
+
+        const orders = await Order.find()
+            .sort({ date: -1 });
+
+        res.json(orders);
+
+    }
+
+    // Customer can see their own orders
+    else if (isCustomer(req)) {
+
+        const user = req.user;
+
+        const orders = await Order.find({
+            email: user.email
+        }).sort({ date: -1 });
+
+        res.json(orders);
+
+    }
+
+    // Other users are not authorized
+    else {
+
+        res.status(403).json({
+            message: "You are not authorized to view orders"
+        });
+    }
 }
 
-export async function updateOrderStatus(req, res) {
-	if (!isAdmin(req)) {
-		res.status(403).json({
-			message: "You are not authorized to update order status",
-		});
-		return;
-	}
-	const orderID = req.params.orderID;
-	const newStatus = req.body.status;
-	try {
-		await Order.updateOne({ orderID: orderID }, { status: newStatus });
 
-		res.json({
-			message: "Order status updated successfully",
-		});
-	} catch (err) {
-		console.error(err);
-		res.status(500).json({
-			message: "Failed to update order status",
-		});
-		return;
-	}
+// Update order status
+export async function updateOrderStatus(req, res) {
+
+    // Only admin can update order status
+    if (!isAdmin(req)) {
+        res.status(403).json({
+            message: "You are not authorized to update order status"
+        });
+
+        return;
+    }
+
+    const orderID = req.params.orderID;
+    const newStatus = req.body.status;
+
+    try {
+
+        // Update status
+        await Order.updateOne(
+            { orderID: orderID },
+            { status: newStatus }
+        );
+
+        res.json({
+            message: "Order status updated successfully"
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            message: "Failed to update order status"
+        });
+
+        return;
+    }
 }
